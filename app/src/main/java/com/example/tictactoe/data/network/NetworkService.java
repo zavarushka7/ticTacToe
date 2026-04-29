@@ -1,5 +1,6 @@
 package com.example.tictactoe.data.network;
 
+import android.content.Context;
 import android.os.Looper;
 import android.os.Handler;
 import com.example.tictactoe.data.api.ApiService;
@@ -11,6 +12,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 
+import okhttp3.OkHttpClient;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -25,11 +27,15 @@ public class NetworkService {
     // обработчик для переключения на главный поток. Handler позволяет выполнить код в определенном потоке. Looper.getMainLooper() - получает главный поток (UI) Android. mainHandler - будет отправлять результаты в UI поток. Нужно т.к. Retrofit вызывает колбэки в фоновом потоке, а обновлять UI можно только из главного потока
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
-    private NetworkService() {
+    private NetworkService(Context context) {
+        OkHttpClient client = new OkHttpClient.Builder()
+                .addInterceptor(new AuthInterceptor(context))
+                .build();
         // создание Retorfit через билдер (паттерн строитель)
         Retrofit retrofit = new Retrofit.Builder()
                 // устанавливаем базовый URL сервера
                 .baseUrl("http://10.0.2.2:8080/")
+                .client(client)
                 // добавляем конвертер для превращения JSON в Java обьекты и обратно
                 .addConverterFactory(GsonConverterFactory.create())
                 .build();
@@ -38,9 +44,9 @@ public class NetworkService {
     }
 
     // публичный статический метод для получения экземпляра. static - вызывается через класс NetworkService.getInstance(). synchronized - защита от одновременного вызова из разных потоков
-    public static synchronized NetworkService getInstance() {
+    public static synchronized NetworkService getInstance(Context context) {
         if (instance == null) {
-            instance = new NetworkService();
+            instance = new NetworkService(context);
         }
         return instance;
     }
