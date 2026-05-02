@@ -27,20 +27,4 @@ public abstract class TicTacToeDatabase extends RoomDatabase {
     public abstract CurrentUserDao currentUserDao();
     public abstract GameDao gameDao();
 
-    private static volatile TicTacToeDatabase instance;
-
-    public static TicTacToeDatabase getInstance(Context context){
-        if (instance == null) {
-            synchronized (TicTacToeDatabase.class){
-                if (instance == null){
-                    instance = Room.databaseBuilder(
-                            context.getApplicationContext(),
-                            TicTacToeDatabase.class,
-                            "tictactoe_database"
-                    ).build();
-                }
-            }
-        }
-        return instance;
-    }
 }

@@ -13,7 +13,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class DatabaseService {
-    private static DatabaseService instance;
+
     private final TicTacToeDatabase database;
     // Выполняет тяжелую работу в фоновом потоке
     // ExecutorService управляет пулом потоков
@@ -24,16 +24,10 @@ public class DatabaseService {
     // Looper.getMainLooper получает главный поток
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
-    private DatabaseService(Context context){
-        database = TicTacToeDatabase.getInstance(context);
+    public DatabaseService(TicTacToeDatabase database){
+        this.database = database;
     }
 
-    public static synchronized DatabaseService getInstance(Context context){
-        if (instance == null){
-            instance = new DatabaseService(context);
-        }
-        return instance;
-    }
 
     // CURRENT USER --------------------------------------------------------------------------------
     public void getCurrentUser(DatabaseCallback<CurrentUserEntity> callback){
@@ -60,7 +54,7 @@ public class DatabaseService {
         });
     }
 
-    public void clearCurrentUser(DatabaseCallback<Boolean> callback){
+    public void clearCurrentUser(DatabaseCallback<Void> callback){
         executor.execute(() -> {
             try {
                 database.currentUserDao().clear();

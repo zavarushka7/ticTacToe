@@ -1,0 +1,1209 @@
+================== FILE: ./1.sh ==================
+ #!/bin/bash
+
+# Укажите путь к папке (текущая папка или укажите свою)
+TARGET_DIR="${1:-.}"
+
+# Имя выходного файла
+OUTPUT_FILE="all_files_content.txt"
+
+# Очищаем выходной файл
+> "$OUTPUT_FILE"
+
+# Рекурсивно обходим все файлы
+find "$TARGET_DIR" -type f | while read -r file; do
+    echo "================== FILE: $file ==================" >> "$OUTPUT_FILE"
+    cat "$file" >> "$OUTPUT_FILE"
+    echo "" >> "$OUTPUT_FILE"
+    echo "" >> "$OUTPUT_FILE"
+done
+
+echo "Готово! Содержимое сохранено в $OUTPUT_FILE"
+
+
+================== FILE: ./all_files_content.txt ==================
+
+
+================== FILE: ./TicTacToeApp.java ==================
+package com.example.tictactoe;
+
+import android.app.Application;
+
+import com.example.tictactoe.di.AppComponent;
+import com.example.tictactoe.di.DaggerAppComponent;
+
+public class TicTacToeApp extends Application {
+
+    private AppComponent appComponent;
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+
+        appComponent = DaggerAppComponent.builder()
+                .application(this)
+                .build();
+    }
+
+    public AppComponent getAppComponent() {
+        return appComponent;
+    }
+}
+
+================== FILE: ./presentation/RegistrationActivity.java ==================
+package com.example.tictactoe.presentation;
+
+public class RegistrationActivity {
+}
+
+
+================== FILE: ./presentation/CurrentGamesActivity.java ==================
+package com.example.tictactoe.presentation;
+
+public class CurrentGamesActivity {
+}
+
+
+================== FILE: ./presentation/GameActivity.java ==================
+package com.example.tictactoe.presentation;
+
+public class GameActivity {
+}
+
+
+================== FILE: ./presentation/AuthActivity.java ==================
+package com.example.tictactoe.presentation;
+
+public class AuthActivity {
+}
+
+
+================== FILE: ./presentation/CreateGameActivity.java ==================
+package com.example.tictactoe.presentation;
+
+public class CreateGameActivity {
+}
+
+
+================== FILE: ./di/AppComponent.java ==================
+package com.example.tictactoe.di;
+
+import android.app.Application;
+
+import com.example.tictactoe.TicTacToeApp;
+import com.example.tictactoe.data.database.DatabaseService;
+import com.example.tictactoe.data.network.NetworkService;
+
+import javax.inject.Singleton;
+
+import dagger.BindsInstance;
+import dagger.Component;
+
+@Singleton
+@Component(modules = {
+        DatabaseModule.class,
+        NetworkModule.class,
+        ServiceModule.class
+})
+public interface AppComponent {
+    void inject(TicTacToeApp app);
+
+    DatabaseService getDatabaseService();
+    NetworkService getNetworkService();
+
+    @Component.Builder
+    interface Builder {
+        @BindsInstance
+        Builder application(Application application);
+
+        AppComponent build();
+    }
+}
+
+================== FILE: ./di/NetworkModule.java ==================
+package com.example.tictactoe.di;
+
+import android.content.Context;
+
+import com.example.tictactoe.data.api.ApiService;
+import com.example.tictactoe.data.database.TicTacToeDatabase;
+import com.example.tictactoe.data.network.AuthInterceptor;
+
+import javax.inject.Singleton;
+
+import dagger.Module;
+import dagger.Provides;
+import okhttp3.OkHttpClient;
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
+
+@Module
+public class NetworkModule {
+
+    private static final String BASE_URL = "http://10.0.2.2:8080/";
+
+    @Provides
+    AuthInterceptor provideAuthInterceptor(TicTacToeDatabase database) {
+        return new AuthInterceptor(database);
+    }
+
+    @Provides
+    @Singleton
+    OkHttpClient provideOkHttpClient(AuthInterceptor authInterceptor) {
+        return new OkHttpClient.Builder()
+                .addInterceptor(authInterceptor)
+                .build();
+    }
+
+    @Provides
+    @Singleton
+    Retrofit provideRetrofit(OkHttpClient okHttpClient) {
+        return new Retrofit.Builder()
+                .baseUrl(BASE_URL)
+                .client(okHttpClient)
+                .addConverterFactory(GsonConverterFactory.create())
+                .build();
+    }
+
+    @Provides
+    @Singleton
+    ApiService provideApiService(Retrofit retrofit) {
+        return retrofit.create(ApiService.class);
+    }
+}
+
+================== FILE: ./di/DatabaseModule.java ==================
+package com.example.tictactoe.di;
+
+import android.app.Application;
+import android.content.Context;
+
+import androidx.room.Room;
+
+import com.example.tictactoe.data.database.TicTacToeDatabase;
+
+import javax.inject.Singleton;
+
+import dagger.Module;
+import dagger.Provides;
+
+@Module
+public class DatabaseModule {
+
+    @Provides
+    @Singleton
+    Context provideContext(Application application) {
+        return application.getApplicationContext();
+    }
+
+    @Provides
+    @Singleton
+    TicTacToeDatabase provideTicTacToeDatabase(Context context) {
+        return Room.databaseBuilder(
+                context.getApplicationContext(),
+                TicTacToeDatabase.class,
+                "tictactoe_database"
+        ).build();
+    }
+}
+
+================== FILE: ./di/ServiceModule.java ==================
+package com.example.tictactoe.di;
+
+import com.example.tictactoe.data.api.ApiService;
+import com.example.tictactoe.data.database.DatabaseService;
+import com.example.tictactoe.data.database.TicTacToeDatabase;
+import com.example.tictactoe.data.network.NetworkService;
+
+import javax.inject.Singleton;
+
+import dagger.Module;
+import dagger.Provides;
+
+@Module
+public class ServiceModule {
+
+    @Provides
+    @Singleton
+    DatabaseService provideDatabaseService(TicTacToeDatabase database) {
+        return new DatabaseService(database);
+    }
+
+    @Provides
+    @Singleton
+    NetworkService provideNetworkService(ApiService apiService) {
+        return new NetworkService(apiService);
+    }
+}
+
+================== FILE: ./data/dto/UserResponseDto.java ==================
+package com.example.tictactoe.data.dto;
+
+import com.google.gson.annotations.SerializedName;
+
+import java.util.UUID;
+
+public class UserResponseDto {
+    @SerializedName("login")
+    private String login;
+    @SerializedName("uuid")
+    private UUID uuid;
+}
+
+
+================== FILE: ./data/dto/SignUpRequestDto.java ==================
+package com.example.tictactoe.data.dto;
+
+import com.google.gson.annotations.SerializedName;
+
+public class SignUpRequestDto {
+    @SerializedName("login")
+    private String login;
+    @SerializedName("password")
+    private String password;
+
+
+    public SignUpRequestDto(String login, String password) {
+        this.login = login;
+        this.password = password;
+    }
+}
+
+
+================== FILE: ./data/dto/GameModelDto.java ==================
+package com.example.tictactoe.data.dto;
+
+import com.google.gson.annotations.SerializedName;
+
+import java.util.UUID;
+
+public class GameModelDto {
+    @SerializedName("uuidGame")
+    private UUID uuidGame;
+    @SerializedName("field")
+
+    private int[][] field;
+    @SerializedName("FirstPlayer_X")
+
+    private UUID firstPlayer_X;
+    @SerializedName("SecondPlayer_O")
+
+    private UUID secondPlayer_O;
+    @SerializedName("playingWithBot")
+
+    private Boolean playingWithBot;
+    @SerializedName("stateGame")
+
+    private String stateGame;
+    @SerializedName("gameOver")
+
+    private Boolean gameOver;
+    @SerializedName("status")
+    private String status;
+    @SerializedName("winner")
+    private String winner;
+
+    public UUID getUuidGame() { return uuidGame; }
+    public void setUuidGame(UUID uuidGame) { this.uuidGame = uuidGame; }
+
+    public int[][] getField() { return field; }
+    public void setField(int[][] field) { this.field = field; }
+
+    public UUID getFirstPlayer_X() { return firstPlayer_X; }
+    public void setFirstPlayer_X(UUID firstPlayer_X) { this.firstPlayer_X = firstPlayer_X; }
+
+    public UUID getSecondPlayer_O() { return secondPlayer_O; }
+    public void setSecondPlayer_O(UUID secondPlayer_O) { this.secondPlayer_O = secondPlayer_O; }
+
+    public Boolean getPlayingWithBot() { return playingWithBot; }
+    public void setPlayingWithBot(Boolean playingWithBot) { this.playingWithBot = playingWithBot; }
+
+    public String getStateGame() { return stateGame; }
+    public void setStateGame(String stateGame) { this.stateGame = stateGame; }
+
+    public Boolean getGameOver() { return gameOver; }
+    public void setGameOver(Boolean gameOver) { this.gameOver = gameOver; }
+
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+
+    public String getWinner() { return winner; }
+    public void setWinner(String winner) { this.winner = winner; }
+}
+
+
+
+================== FILE: ./data/network/NetworkCallback.java ==================
+package com.example.tictactoe.data.network;
+
+public interface NetworkCallback<T> {
+    void onSuccess(T data);
+    void onError(String errorMessage);
+    void onNetworkError();
+}
+
+
+================== FILE: ./data/network/NetworkService.java ==================
+package com.example.tictactoe.data.network;
+
+
+import android.os.Looper;
+import android.os.Handler;
+import com.example.tictactoe.data.api.ApiService;
+import com.example.tictactoe.data.dto.GameModelDto;
+import com.example.tictactoe.data.dto.SignUpRequestDto;
+import com.example.tictactoe.data.dto.UserResponseDto;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.UUID;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+
+
+public class NetworkService {
+    // интерфейс с аннотациями Retrofit (final - переменная инициализируется один раз и не меняется)
+    private final ApiService apiService;
+    // обработчик для переключения на главный поток. Handler позволяет выполнить код в определенном потоке. Looper.getMainLooper() - получает главный поток (UI) Android. mainHandler - будет отправлять результаты в UI поток. Нужно т.к. Retrofit вызывает колбэки в фоновом потоке, а обновлять UI можно только из главного потока
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+
+    public NetworkService(ApiService apiService) {
+        this.apiService = apiService;
+    }
+
+    public void signUp(String login, String password, NetworkCallback<String> callback){
+        // создаем DTO из простых параметров. Пользователь передал login, password, а мы создаем обьект, который Retrofit отправит на сервер
+        SignUpRequestDto request = new SignUpRequestDto(login, password);
+
+        // apiService.siqnup(request) - вызывает метод из ApiService, возвращает Call<String>
+        // .enqueue(...) - выполняет запрос асинхронно (в фоновом потоке)
+        // new Callback<String>() - создаем анонимный класс для обработки ответа
+        apiService.signup(request).enqueue(new Callback<String>() {
+            @Override
+            // метод вызывается, когда сервер ответил (неважно, с ошибкой или успехом)
+            public void onResponse(Call<String> call, Response<String> response) {
+                // переключаемся на главный поток
+                mainHandler.post(() -> {
+                    if (response.isSuccessful() && response.body() != null){
+                        callback.onSuccess(response.body());
+                    } else {
+                        String errorMsg = "Ошибка регистрации: " + response.code();
+                        if (response.errorBody() != null){
+                            try {
+                                errorMsg = response.errorBody().string();
+                            } catch (IOException e){
+                                errorMsg = "Неизвестная ошибка";
+                            }
+                        }
+                        callback.onError(errorMsg);
+                    }
+                });
+            }
+
+            @Override
+            // метод вызывается при сетевой ошибке (нет интернета, таймаут, сервер недоступен)
+            public void onFailure(Call<String> call, Throwable t) {
+                mainHandler.post(() -> {
+                    callback.onNetworkError();
+                });
+            }
+        });
+
+
+    }
+
+    public void login(String authHeader, NetworkCallback<UUID> callback){
+        apiService.login(authHeader).enqueue(new Callback<UUID>() {
+            @Override
+            public void onResponse(Call<UUID> call, Response<UUID> response) {
+                mainHandler.post(() -> {
+                   if (response.isSuccessful() && response.body() != null){
+                       callback.onSuccess(response.body());
+                   } else {
+                       String errorMsg = "Ошибка авторизации: " + response.code();
+                       if (response.errorBody() != null){
+                           try {
+                               errorMsg = response.errorBody().string();
+                           } catch (IOException e) {
+                               errorMsg = "Неверный логин или пароль";
+                           }
+                       }
+                       callback.onError(errorMsg);
+                   }
+                });
+            }
+
+            @Override
+            public void onFailure(Call<UUID> call, Throwable t) {
+                mainHandler.post(() -> {
+                    callback.onNetworkError();
+                });
+            }
+        });
+    }
+
+    public void getUserById(UUID uuidGame, NetworkCallback<UserResponseDto> callback){
+        apiService.getUserById(uuidGame).enqueue(new Callback<UserResponseDto>() {
+            @Override
+            public void onResponse(Call<UserResponseDto> call, Response<UserResponseDto> response) {
+                mainHandler.post(() -> {
+                    if (response.isSuccessful() && response.body() != null){
+                        callback.onSuccess(response.body());
+                    } else {
+                        String errorMsg = "Пользователь не найден";
+                        if (response.errorBody() != null){
+                            try {
+                                errorMsg = response.errorBody().string();
+                            } catch (IOException e) {
+                                errorMsg = "Ошибка получения пользователя";
+                            }
+                        }
+                        callback.onError(errorMsg);
+                    }
+                });
+            }
+
+            @Override
+            public void onFailure(Call<UserResponseDto> call, Throwable t) {
+                mainHandler.post(() -> {
+                    callback.onNetworkError();
+                });
+            }
+        });
+    }
+    public void updateGame(UUID uuiGame, GameModelDto gameModel, NetworkCallback<GameModelDto> callback){
+        apiService.updateGame(uuiGame, gameModel).enqueue(new Callback<GameModelDto>() {
+            @Override
+            public void onResponse(Call<GameModelDto> call, Response<GameModelDto> response) {
+                mainHandler.post(() -> {
+                    if (response.isSuccessful() && response.body() != null){
+                        callback.onSuccess(response.body());
+                    } else {
+                        String errorMsg = "Ошибка обновления игры";
+                        if (response.errorBody() != null){
+                            try {
+                                errorMsg = response.errorBody().string();
+                            } catch (IOException e) {
+                                errorMsg = "Не удалось обновить игру";
+                            }
+                        }
+                        callback.onError(errorMsg);
+                    }
+                });
+            }
+
+            @Override
+            public void onFailure(Call<GameModelDto> call, Throwable t) {
+                mainHandler.post(() -> {
+                    callback.onNetworkError();
+                });
+            }
+        });
+    }
+    public void getAvailableGames(NetworkCallback<String> callback){
+        apiService.getAvailableGames().enqueue(new Callback<String>() {
+            @Override
+            public void onResponse(Call<String> call, Response<String> response) {
+                mainHandler.post(() -> {
+                    if (response.isSuccessful() && response.body() != null){
+                        callback.onSuccess(response.body());
+                    } else {
+                        String errorMsg = "Ошибка получения доступных игр";
+                        if (response.errorBody() != null){
+                            try {
+                                errorMsg = response.errorBody().string();
+                            } catch (IOException e) {
+                                errorMsg = "Не удалось получить список игр";
+                            }
+                        }
+                        callback.onError(errorMsg);
+                    }
+                });
+            }
+
+            @Override
+            public void onFailure(Call<String> call, Throwable t) {
+                mainHandler.post(() -> {
+                    callback.onNetworkError();
+                });
+            }
+        });
+    }
+    public void createGame(Boolean bot, NetworkCallback<String> callback){
+        apiService.createGame(bot).enqueue(new Callback<String>() {
+            @Override
+            public void onResponse(Call<String> call, Response<String> response) {
+                mainHandler.post(() -> {
+                    if (response.isSuccessful() && response.body() != null){
+                        callback.onSuccess(response.body());
+                    } else {
+                        String errorMsg = "Ошибка создания игры";
+                        if (response.errorBody() != null){
+                            try {
+                                errorMsg = response.errorBody().string();
+                            } catch (IOException e) {
+                                errorMsg = "Не удалось создать игру";
+                            }
+                        }
+                        callback.onError(errorMsg);
+                    }
+                });
+            }
+
+            @Override
+            public void onFailure(Call<String> call, Throwable t) {
+                mainHandler.post(() -> {
+                    callback.onNetworkError();
+                });
+            }
+        });
+    }
+
+    public void joinGame(UUID uuidGame, Integer position, NetworkCallback<String> callback){
+        apiService.joinGame(uuidGame, position).enqueue(new Callback<String>() {
+            @Override
+            public void onResponse(Call<String> call, Response<String> response) {
+                mainHandler.post(() -> {
+                    if (response.isSuccessful() && response.body() != null){
+                        callback.onSuccess(response.body());
+                    } else {
+                        String errorMsg = "Ошибка подключения к игре";
+                        if (response.errorBody() != null){
+                            try {
+                                errorMsg = response.errorBody().string();
+                            } catch (IOException e) {
+                                errorMsg = "Не удалось подключиться к игре";
+                            }
+                        }
+                        callback.onError(errorMsg);
+                    }
+                });
+            }
+
+            @Override
+            public void onFailure(Call<String> call, Throwable t) {
+                mainHandler.post(() -> {
+                    callback.onNetworkError();
+                });
+            }
+        });
+    }
+
+    public void getCurrentGame(UUID uuidGame, NetworkCallback<GameModelDto> callback){
+        apiService.getCurrentGame(uuidGame).enqueue(new Callback<GameModelDto>() {
+            @Override
+            public void onResponse(Call<GameModelDto> call, Response<GameModelDto> response) {
+                mainHandler.post(() -> {
+                    if (response.isSuccessful() && response.body() != null){
+                        callback.onSuccess(response.body());
+                    } else {
+                        String errorMsg = "Ошибка получения игры";
+                        if (response.errorBody() != null){
+                            try {
+                                errorMsg = response.errorBody().string();
+                            } catch (IOException e) {
+                                errorMsg = "Не удалось получить текущую игру";
+                            }
+                        }
+                        callback.onError(errorMsg);
+                    }
+                });
+            }
+
+            @Override
+            public void onFailure(Call<GameModelDto> call, Throwable t) {
+                mainHandler.post(() -> {
+                    callback.onNetworkError();
+                });
+            }
+        });
+    }
+
+    public void getAllCurrentGames(NetworkCallback<List<GameModelDto>> callback){
+        apiService.getAllCurrentGames().enqueue(new Callback<List<GameModelDto>>() {
+            @Override
+            public void onResponse(Call<List<GameModelDto>> call, Response<List<GameModelDto>> response) {
+                mainHandler.post(() -> {
+                    if (response.isSuccessful() && response.body() != null){
+                        callback.onSuccess(response.body());
+                    } else {
+                        String errorMsg = "Ошибка получения текущих игр";
+                        if (response.errorBody() != null){
+                            try {
+                                errorMsg = response.errorBody().string();
+                            } catch (IOException e) {
+                                errorMsg = "Не удалось получить текущие игры";
+                            }
+                        }
+                        callback.onError(errorMsg);
+                    }
+                });
+            }
+
+            @Override
+            public void onFailure(Call<List<GameModelDto>> call, Throwable t) {
+                mainHandler.post(() -> {
+                    callback.onNetworkError();
+                });
+            }
+        });
+    }
+
+
+}
+
+
+================== FILE: ./data/network/AuthInterceptor.java ==================
+package com.example.tictactoe.data.network;
+
+import android.content.Context;
+import android.content.SharedPreferences;
+
+
+
+import java.io.IOException;
+import java.util.Currency;
+
+import android.util.Base64;
+
+import com.example.tictactoe.data.database.TicTacToeDatabase;
+import com.example.tictactoe.data.database.entity.CurrentUserEntity;
+
+import okhttp3.Interceptor;
+import okhttp3.Request;
+import okhttp3.Response;
+
+public class AuthInterceptor implements Interceptor {
+
+    private final TicTacToeDatabase database;
+    public AuthInterceptor(TicTacToeDatabase database) {
+        this.database = database;
+    }
+
+    @Override
+    public Response intercept(Chain chain) throws IOException {
+        Request originalRequest = chain.request();
+        CurrentUserEntity currentUser = database.currentUserDao().getCurrentUser();
+
+
+
+        Request modifiedRequest = originalRequest;
+        if (currentUser!= null){
+            String login = currentUser.getLogin();
+            String password = currentUser.getPassword();
+            String credentials = login + ":" + password;
+
+            // Кодируем в Base64. credentials.getBytes() - превращает строку в массив байтов
+            // Base64.NO_WRAP - не добавлять переносы строк
+            String base64Credentials = Base64.encodeToString(
+                    credentials.getBytes(),
+                    Base64.NO_WRAP
+            );
+
+            String authHeader = "Basic " + base64Credentials;
+
+            modifiedRequest = originalRequest.newBuilder()
+                    .addHeader("Authorization", authHeader)
+                    .build();
+        }
+        // Отправляем запрос на сервер и получаем ответ. chain.proceed() - продолжает выполнение запроса
+        Response response = chain.proceed(modifiedRequest);
+        return response;
+    }
+}
+
+
+================== FILE: ./data/database/TicTacToeDatabase.java ==================
+package com.example.tictactoe.data.database;
+
+import android.content.Context;
+
+import androidx.room.Database;
+import androidx.room.Room;
+import androidx.room.RoomDatabase;
+
+import com.example.tictactoe.data.database.dao.CurrentUserDao;
+import com.example.tictactoe.data.database.dao.GameDao;
+import com.example.tictactoe.data.database.dao.UserDao;
+import com.example.tictactoe.data.database.entity.CurrentUserEntity;
+import com.example.tictactoe.data.database.entity.GameEntity;
+import com.example.tictactoe.data.database.entity.UserEntity;
+
+@Database(
+        entities = {
+                UserEntity.class,
+                CurrentUserEntity.class,
+                GameEntity.class
+        },
+        version = 1,
+        exportSchema = false
+)
+public abstract class TicTacToeDatabase extends RoomDatabase {
+    public abstract UserDao userDao();
+    public abstract CurrentUserDao currentUserDao();
+    public abstract GameDao gameDao();
+
+}
+
+
+================== FILE: ./data/database/DatabaseService.java ==================
+package com.example.tictactoe.data.database;
+
+import android.content.Context;
+import android.os.Handler;
+import android.os.Looper;
+
+import com.example.tictactoe.data.database.entity.CurrentUserEntity;
+import com.example.tictactoe.data.database.entity.GameEntity;
+import com.example.tictactoe.data.database.entity.UserEntity;
+
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+public class DatabaseService {
+
+    private final TicTacToeDatabase database;
+    // Выполняет тяжелую работу в фоновом потоке
+    // ExecutorService управляет пулом потоков
+    // Executors.newSingleThreadExecutor создает один фоновый поток для всех задач
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    // Возвращает результат в главный поток
+    // Handler позволяет выполнить код в определенном потоке
+    // Looper.getMainLooper получает главный поток
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+
+    public DatabaseService(TicTacToeDatabase database){
+        this.database = database;
+    }
+
+
+    // CURRENT USER --------------------------------------------------------------------------------
+    public void getCurrentUser(DatabaseCallback<CurrentUserEntity> callback){
+        // отправляет задачу в фоновый поток
+        executor.execute(() -> {
+            try {
+                CurrentUserEntity user = database.currentUserDao().getCurrentUser();
+                // переключается на главный поток и вызывает callback.onSuccess() с результатом
+                mainHandler.post(() -> callback.onSuccess(user));
+            } catch (Exception e) {
+                mainHandler.post(() -> callback.onError(e.getMessage()));
+            }
+        });
+    }
+
+    public void isUserLoggedIn(DatabaseCallback<Boolean> callback){
+        executor.execute(() -> {
+            try {
+                Boolean isUserLoggedIn = database.currentUserDao().isUserLoggedIn();
+                mainHandler.post(() -> callback.onSuccess(isUserLoggedIn));
+            } catch (Exception e){
+                mainHandler.post(() -> callback.onError(e.getMessage()));
+            }
+        });
+    }
+
+    public void clearCurrentUser(DatabaseCallback<Void> callback){
+        executor.execute(() -> {
+            try {
+                database.currentUserDao().clear();
+                mainHandler.post(() -> callback.onSuccess(null));
+            } catch (Exception e){
+                mainHandler.post(() -> callback.onError(e.getMessage()));
+            }
+        });
+    }
+
+    // GAME  ---------------------------------------------------------------------------------------
+    public void getGameByUuid(String uuid, DatabaseCallback<GameEntity> callback){
+        executor.execute(() -> {
+            try {
+                GameEntity gameByUuid = database.gameDao().getGameByUuid(uuid);
+                mainHandler.post(() -> callback.onSuccess(gameByUuid));
+            } catch (Exception e) {
+                mainHandler.post(() -> callback.onError(e.getMessage()));
+            }
+        });
+    }
+    public void getAllGames(DatabaseCallback<List<GameEntity>> callback){
+        executor.execute(() -> {
+            try {
+                List<GameEntity> allGames = database.gameDao().getAllGames();
+                mainHandler.post(() -> callback.onSuccess(allGames));
+            } catch (Exception e) {
+                mainHandler.post(() -> callback.onError(e.getMessage()));
+            }
+        });
+    }
+
+    public void deleteAllGames(DatabaseCallback<Void> callback){
+        executor.execute(() -> {
+            try {
+                database.gameDao().deleteAll();
+                mainHandler.post(() -> callback.onSuccess(null));
+            } catch (Exception e) {
+                mainHandler.post(() -> callback.onError(e.getMessage()));
+            }
+        });
+    }
+
+    public void deleteGame(GameEntity game, DatabaseCallback<Void> callback){
+        executor.execute(() -> {
+            try {
+                database.gameDao().delete(game);
+                mainHandler.post(() -> callback.onSuccess(null));
+            } catch (Exception e) {
+                mainHandler.post(() -> callback.onError(e.getMessage()));
+            }
+        });
+    }
+    public void saveGame(GameEntity game, DatabaseCallback<Void> callback){
+        executor.execute(() -> {
+            try {
+                database.gameDao().insert(game);
+                mainHandler.post(() -> callback.onSuccess(null));
+            } catch (Exception e) {
+                mainHandler.post(() -> callback.onError(e.getMessage()));
+            }
+        });
+    }
+
+    // USERS  ---------------------------------------------------------------------------------------
+    public void saveUser(UserEntity user, DatabaseCallback<Void> callback) {
+        executor.execute(() -> {
+            try {
+                database.userDao().insert(user);
+                mainHandler.post(() -> callback.onSuccess(null));
+            } catch (Exception e) {
+                mainHandler.post(() -> callback.onError(e.getMessage()));
+            }
+        });
+    }
+
+    public void getUserByUuid(String uuid, DatabaseCallback<UserEntity> callback) {
+        executor.execute(() -> {
+            try {
+                UserEntity user = database.userDao().getUserByUuid(uuid);
+                mainHandler.post(() -> callback.onSuccess(user));
+            } catch (Exception e) {
+                mainHandler.post(() -> callback.onError(e.getMessage()));
+            }
+        });
+    }
+
+    public void getAllUsers(DatabaseCallback<List<UserEntity>> callback) {
+        executor.execute(() -> {
+            try {
+                List<UserEntity> users = database.userDao().getAllUsers();
+                mainHandler.post(() -> callback.onSuccess(users));
+            } catch (Exception e) {
+                mainHandler.post(() -> callback.onError(e.getMessage()));
+            }
+        });
+    }
+
+}
+
+
+================== FILE: ./data/database/dao/CurrentUserDao.java ==================
+package com.example.tictactoe.data.database.dao;
+
+import androidx.room.Dao;
+import androidx.room.Delete;
+import androidx.room.Insert;
+import androidx.room.Query;
+import androidx.room.Update;
+
+import com.example.tictactoe.data.database.entity.CurrentUserEntity;
+
+@Dao
+public interface CurrentUserDao {
+    @Insert
+    void insert(CurrentUserEntity currentUser);
+
+    @Update
+    void update(CurrentUserEntity currentUser);
+
+    @Delete
+    void delete(CurrentUserEntity currentUser);
+
+    @Query("SELECT * FROM current_user LIMIT 1")
+    CurrentUserEntity getCurrentUser();
+
+    @Query("SELECT COUNT(*) > 0 FROM current_user")
+    boolean isUserLoggedIn();
+
+    @Query("DELETE FROM current_user")
+    void clear();
+}
+
+
+================== FILE: ./data/database/dao/UserDao.java ==================
+package com.example.tictactoe.data.database.dao;
+
+import androidx.room.Dao;
+import androidx.room.Delete;
+import androidx.room.Insert;
+import androidx.room.Query;
+import androidx.room.Update;
+
+import com.example.tictactoe.data.database.entity.UserEntity;
+
+import java.util.List;
+
+@Dao
+public interface UserDao {
+    @Insert
+    void insert(UserEntity user);
+
+    @Update
+    void update(UserEntity user);
+
+    @Delete
+    void delete(UserEntity user);
+
+    @Query("SELECT * FROM users WHERE user_uuid = :uuid")
+    UserEntity getUserByUuid(String uuid);
+
+    @Query("SELECT * FROM users")
+    List<UserEntity> getAllUsers();
+
+    @Query("DELETE FROM users")
+    void deleteAll();
+
+}
+
+================== FILE: ./data/database/dao/GameDao.java ==================
+package com.example.tictactoe.data.database.dao;
+
+import androidx.room.Dao;
+import androidx.room.Delete;
+import androidx.room.Insert;
+import androidx.room.Query;
+import androidx.room.Update;
+
+import com.example.tictactoe.data.database.entity.GameEntity;
+
+import java.util.List;
+
+@Dao
+public interface GameDao {
+    @Insert
+    void insert(GameEntity game);
+
+    @Update
+    void update(GameEntity game);
+
+    @Delete
+    void delete(GameEntity game);
+
+    @Query("SELECT * FROM games WHERE game_uuid = :uuid")
+    GameEntity getGameByUuid(String uuid);
+
+    @Query("SELECT * FROM games")
+    List<GameEntity> getAllGames();
+
+    @Query("DELETE FROM games")
+    void deleteAll();
+}
+
+
+================== FILE: ./data/database/DatabaseCallback.java ==================
+package com.example.tictactoe.data.database;
+
+public interface DatabaseCallback<T> {
+    void onSuccess(T data);
+    void onError(String errorMessage);
+}
+
+
+================== FILE: ./data/database/entity/UserEntity.java ==================
+package com.example.tictactoe.data.database.entity;
+
+import androidx.room.ColumnInfo;
+import androidx.room.Entity;
+import androidx.room.Ignore;
+import androidx.room.PrimaryKey;
+
+@Entity(tableName = "users")
+public class UserEntity {
+    @PrimaryKey(autoGenerate = true)
+    private Long id;
+
+    @ColumnInfo(name = "user_uuid")
+    private String userUuid;
+
+    @ColumnInfo(name = "login")
+    private String login;
+
+    @ColumnInfo(name = "password")
+    private String password;
+
+
+    public UserEntity() {}
+
+    @Ignore
+    public UserEntity(String userUuid, String login, String password) {
+        this.userUuid = userUuid;
+        this.login = login;
+        this.password = password;
+    }
+
+    public Long getId() { return id; }
+    public String getUserUuid() { return userUuid; }
+    public String getLogin() { return login; }
+    public String getPassword() { return password; }
+
+
+    public void setId(Long id) { this.id = id; }
+    public void setUserUuid(String userUuid) { this.userUuid = userUuid; }
+    public void setLogin(String login) { this.login = login; }
+    public void setPassword(String password) { this.password = password; }
+}
+
+================== FILE: ./data/database/entity/GameEntity.java ==================
+package com.example.tictactoe.data.database.entity;
+
+
+import androidx.room.ColumnInfo;
+import androidx.room.Entity;
+import androidx.room.Ignore;
+import androidx.room.PrimaryKey;
+
+@Entity(tableName = "games")
+public class GameEntity {
+    @PrimaryKey(autoGenerate = true)
+    private Long id;
+
+    @ColumnInfo(name = "game_uuid")
+    private String gameUuid;
+
+    @ColumnInfo(name = "field")
+    private String field;
+
+    @ColumnInfo(name = "status")
+    private String status;
+
+    @ColumnInfo(name = "winner")
+    private String winner;
+    @ColumnInfo(name = "my_symbol")
+    private String mySymbol;
+    @ColumnInfo(name = "timestamp")
+    private long timestamp;
+
+    public GameEntity() {}
+
+    @Ignore
+    public GameEntity(String gameUuid, String field, String status, String winner, String mySymbol, long timestamp) {
+        this.gameUuid = gameUuid;
+        this.field = field;
+        this.status = status;
+        this.winner = winner;
+        this.mySymbol = mySymbol;
+        this.timestamp = timestamp;
+    }
+
+    public Long getId() { return id; }
+    public String getGameUuid() { return gameUuid; }
+    public String getField() { return field; }
+    public String getStatus() { return status; }
+    public String getWinner() { return winner; }
+    public String getMySymbol() { return mySymbol; }
+    public long getTimestamp() { return timestamp; }
+
+    public void setId(Long id) { this.id = id; }
+    public void setGameUuid(String gameUuid) { this.gameUuid = gameUuid; }
+    public void setField(String field) { this.field = field; }
+    public void setStatus(String status) { this.status = status; }
+    public void setWinner(String winner) { this.winner = winner; }
+    public void setMySymbol(String mySymbol) { this.mySymbol = mySymbol; }
+    public void setTimestamp(long timestamp) { this.timestamp = timestamp; }
+}
+
+
+================== FILE: ./data/database/entity/CurrentUserEntity.java ==================
+package com.example.tictactoe.data.database.entity;
+
+import androidx.room.ColumnInfo;
+import androidx.room.Entity;
+import androidx.room.Ignore;
+import androidx.room.PrimaryKey;
+
+@Entity(tableName = "current_user")
+public class CurrentUserEntity {
+    @PrimaryKey(autoGenerate = true)
+    private Long id;
+
+    @ColumnInfo(name = "user_uuid")
+    private String userUuid;
+
+    @ColumnInfo(name = "login")
+    private String login;
+
+    @ColumnInfo(name = "password")
+    private String password;
+
+    public CurrentUserEntity() {}
+
+    @Ignore
+    public CurrentUserEntity(String userUuid, String login, String password) {
+        this.userUuid = userUuid;
+        this.login = login;
+        this.password = password;
+    }
+
+    public Long getId() { return id; }
+    public String getUserUuid() { return userUuid; }
+    public String getLogin() { return login; }
+    public String getPassword() { return password; }
+
+    public void setId(Long id) { this.id = id; }
+    public void setUserUuid(String userUuid) { this.userUuid = userUuid; }
+    public void setLogin(String login) { this.login = login; }
+    public void setPassword(String password) { this.password = password; }
+
+}
+
+
+================== FILE: ./data/api/ApiService.java ==================
+package com.example.tictactoe.data.api;
+
+import com.example.tictactoe.data.dto.GameModelDto;
+import com.example.tictactoe.data.dto.SignUpRequestDto;
+import com.example.tictactoe.data.dto.UserResponseDto;
+
+import java.util.List;
+import java.util.UUID;
+
+
+import retrofit2.Call;
+import retrofit2.http.Body;
+import retrofit2.http.GET;
+import retrofit2.http.Header;
+import retrofit2.http.PATCH;
+import retrofit2.http.POST;
+import retrofit2.http.Path;
+
+public interface ApiService {
+    @POST("/auth/signup")
+    Call<String> signup(@Body SignUpRequestDto request);
+    @POST("/auth/login")
+    Call<UUID> login(@Header("Authorization") String authHeader);
+    @GET("/user/{uuidUser}")
+    Call<UserResponseDto> getUserById(@Path("uuidUser") UUID uuidUser);
+    @POST("/game/{uuidGame}")
+    Call<GameModelDto> updateGame(@Path("uuidGame") UUID uuidGame, @Body GameModelDto gameModel);
+    @GET("/games")
+    Call<String> getAvailableGames();
+    @POST("/game/create")
+    Call<String> createGame(@Body boolean bot);
+    @POST("/game/{uuidGame}/join")
+    Call<String> joinGame(@Path("uuidGame") UUID uuidGame, @Body Integer position);
+    @PATCH("/game/{uuidGame}/get")
+    Call<GameModelDto> getCurrentGame(@Path("uuidGame") UUID uuidGame);
+    @POST("/game/get_current")
+    Call<List<GameModelDto>> getAllCurrentGames();
+}
+
+

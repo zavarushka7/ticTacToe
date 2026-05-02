@@ -12,7 +12,6 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
-
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -25,6 +24,7 @@ android {
             )
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
@@ -32,7 +32,6 @@ android {
 }
 
 dependencies {
-
     implementation(libs.appcompat)
     implementation(libs.material)
     implementation(libs.activity)
@@ -52,11 +51,8 @@ dependencies {
     implementation("androidx.room:room-runtime:2.6.1")
     annotationProcessor("androidx.room:room-compiler:2.6.1")
 
-    implementation("com.google.dagger:dagger:2.48")
-    annotationProcessor("com.google.dagger:dagger-compiler:2.48")
-
-    implementation("com.google.dagger:dagger-android:2.48")
-    annotationProcessor("com.google.dagger:dagger-android-processor:2.48")
+    implementation("com.google.dagger:dagger:2.56.1")
+    annotationProcessor("com.google.dagger:dagger-compiler:2.56.1")
 
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
 }

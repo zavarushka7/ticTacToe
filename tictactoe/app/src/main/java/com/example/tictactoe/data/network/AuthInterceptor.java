@@ -6,31 +6,35 @@ import android.content.SharedPreferences;
 
 
 import java.io.IOException;
+import java.util.Currency;
+
 import android.util.Base64;
+
+import com.example.tictactoe.data.database.TicTacToeDatabase;
+import com.example.tictactoe.data.database.entity.CurrentUserEntity;
 
 import okhttp3.Interceptor;
 import okhttp3.Request;
 import okhttp3.Response;
 
 public class AuthInterceptor implements Interceptor {
-    // храним Context для доступа к SharedPreferences
-    private final Context context;
 
-    public AuthInterceptor(Context context) {
-        // берем ApplicationContext чтобы избежать утечек памяти
-        this.context = context.getApplicationContext();
+    private final TicTacToeDatabase database;
+    public AuthInterceptor(TicTacToeDatabase database) {
+        this.database = database;
     }
 
     @Override
     public Response intercept(Chain chain) throws IOException {
         Request originalRequest = chain.request();
-        SharedPreferences prefs = context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE);
+        CurrentUserEntity currentUser = database.currentUserDao().getCurrentUser();
 
-        String login = prefs.getString("login", null);
-        String password = prefs.getString("password", null);
+
 
         Request modifiedRequest = originalRequest;
-        if (login != null && password != null){
+        if (currentUser!= null){
+            String login = currentUser.getLogin();
+            String password = currentUser.getPassword();
             String credentials = login + ":" + password;
 
             // Кодируем в Base64. credentials.getBytes() - превращает строку в массив байтов
